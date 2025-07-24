@@ -1,0 +1,34 @@
+name: JWT Auth Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-jwt:
+    runs-on: ubuntu-latest
+    env:
+      NGROK_URL: https://4467b55964e3.ngrok-free.app  #Update this each time `make ngrok` runs
+
+    steps:
+      - name: Fetch GitHub OIDC Token
+        id: fetch-oidc
+        run: |
+          echo "Requesting GitHub OIDC token..."
+          ID_TOKEN=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=event-router" | jq -r '.value')
+
+          if [ -z "$ID_TOKEN" ] || [ "$ID_TOKEN" = "null" ]; then
+            echo "Failed to get OIDC token"
+            exit 1
+          fi
+
+          echo "::add-mask::$ID_TOKEN"
+          echo "ID_TOKEN=$ID_TOKEN" >> $GITHUB_ENV
+
+      - name: Send JWT-authenticated request to ngrok
+        run: |
+          echo "Sending JWT-authenticated request to $NGROK_URL/secure-webhook..."
+          curl -v -X POST "$NGROK_URL/secure-webhook" \
+            -H "Authorization: Bearer $ID_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"source": "github", "message": "Test from GitHub Actions JWT"}'
