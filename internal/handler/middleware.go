@@ -32,3 +32,13 @@ func HMACMiddleware(validator *auth.HMACValidator, next http.Handler) http.Handl
 		next.ServeHTTP(w, r)
 	})
 }
+
+func JWTMiddleware(validator *auth.JWTValidator, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := validator.Validate(r); err != nil {
+			http.Error(w, "unauthorized: "+err.Error(), http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -20,28 +20,38 @@ func main() {
 
 	logger := log.New(os.Stdout, "[event-router] ", log.LstdFlags|log.Lshortfile)
 
-	secretEnv := os.Getenv("HMAC_SECRET")
-	if secretEnv == "" {
+	hmacSecretEnv := os.Getenv("HMAC_SECRET")
+	if hmacSecretEnv == "" {
 		logger.Fatal("❌ HMAC_SECRET not set")
 	}
 
-	secrets := strings.Split(secretEnv, ",")
-	for i := range secrets {
-		secrets[i] = strings.TrimSpace(secrets[i])
+	hmacSecrets := strings.Split(hmacSecretEnv, ",")
+	for i := range hmacSecrets {
+		hmacSecrets[i] = strings.TrimSpace(hmacSecrets[i])
 	}
-
-	logger.Printf("Loaded %d HMAC secret(s)", len(secrets))
+	logger.Printf("Loaded %d HMAC secret(s)", len(hmacSecrets))
 
 	if *debug {
 		logger.Println("Debug mode enabled")
 	}
 
-	hmacValidator := auth.NewHMACValidator(secrets)
+	hmacValidator := auth.NewHMACValidator(hmacSecrets)
+	jwtValidator := auth.NewJWTValidator(logger)
+
 	forwarder := dispatcher.NewForwarder(logger)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handler.HealthCheck)
-	mux.Handle("/webhook", handler.HMACMiddleware(hmacValidator, handler.WebhookHandler(forwarder)))
+
+	mux.Handle("/webhook", handler.HMACMiddleware(
+		hmacValidator,
+		handler.WebhookHandler(forwarder),
+	))
+
+	mux.Handle("/secure-webhook", handler.JWTMiddleware(
+		jwtValidator,
+		handler.JWTWebhookHandler(forwarder),
+	))
 
 	srv := &http.Server{
 		Addr:         ":8080",

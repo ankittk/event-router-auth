@@ -79,3 +79,56 @@ sequenceDiagram
         Server->>Client: HTTP 401 Unauthorized
     end
 ```
+
+
+### How JWT Authentication Works
+JWT (JSON Web Token) is used for **internal service-to-service** or **CI/CD authentication**, where:
+
+- The **client is trusted**, such as:
+	- A backend microservice,
+	- An internal CLI tool,
+	- Or a GitHub Actions workflow.
+- The client **obtains a signed JWT** from a trusted Identity Provider (IDP), such as:
+	- An **OAuth 2.0 token endpoint** (for service accounts or CLI apps),
+	- Or **GitHub's OIDC provider** (for GitHub Actions).
+- The client **sends the token** with the request using the `Authorization` header:
+  ```http
+  Authorization: Bearer <jwt_token>
+  ```
+- The event-router-auth server validates the JWT by:
+  - Verifying the signature using the public key or secret.
+  - Checking the token's claims (issuer, audience, expiration).
+  - Optionally validating scopes or permissions.
+- If the token is valid, the request is authenticated, and the event is processed.
+- If the toekn is missing or invalid, the server responds with an error (e.g., 401 Unauthorized).
+
+
+```mermaid
+sequenceDiagram
+    participant Client as CLI Tool / GitHub Actions
+    participant IDP as Identity Provider (OAuth2 / GitHub OIDC)
+    participant Auth as Event Router Auth Server
+    participant Validator as JWT Validator
+    participant Dispatcher as Internal Event Dispatcher
+    participant Consumer as Internal Event Consumer
+
+    Client->>IDP: Request JWT (OAuth2 Flow / GitHub OIDC Token)
+    IDP-->>Client: JWT (Access Token / ID Token)
+
+    Client->>Auth: POST /webhook with:
+    Note right of Client: Authorization: Bearer <JWT>\nContent-Type: application/json
+    Client->>Auth: JSON Payload
+
+    Auth->>Validator: Validate JWT (signature, exp, iss, aud, sub)
+    alt JWT Valid
+        Validator-->>Auth: ✅ Valid JWT
+        Auth->>Dispatcher: Forward event
+        Dispatcher->>Consumer: POST /internal-event
+        Consumer-->>Dispatcher: 200 OK
+        Dispatcher-->>Auth: Event accepted
+        Auth-->>Client: 202 Accepted
+    else Invalid JWT
+        Validator-->>Auth: ❌ Invalid JWT
+        Auth-->>Client: 401 Unauthorized
+    end
+```
