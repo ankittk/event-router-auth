@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  router:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - consumer
+
+  consumer:
+    build:
+      context: .
+      dockerfile: event-consumer/Dockerfile
+    ports:
+      - "9090:9090"
