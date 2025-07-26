@@ -2,5 +2,6 @@
   "type": "deploy",
   "service": "user-api",
   "env": "prod",
-  "version": "v1.2.3"
+  "version": "v1.2.3",
+  "data": "deployment triggered by CLI"
 }

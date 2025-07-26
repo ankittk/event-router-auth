@@ -5,4 +5,5 @@ type Event struct {
 	Service string `json:"service"`
 	Env     string `json:"env"`
 	Version string `json:"version"`
+	Data    string `json:"data"`
 }

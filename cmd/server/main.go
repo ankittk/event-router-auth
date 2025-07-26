@@ -53,6 +53,8 @@ func main() {
 		handler.JWTWebhookHandler(forwarder),
 	))
 
+	mux.Handle("/cli/send-event", handler.RequirePATAuth(handler.CLISendEvent(forwarder)))
+
 	srv := &http.Server{
 		Addr:         ":8080",
 		Handler:      mux,

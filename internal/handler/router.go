@@ -123,3 +123,38 @@ func JWTWebhookHandler(forwarder dispatcher.Forwarder) http.HandlerFunc {
 		w.Write([]byte("event received"))
 	}
 }
+
+func CLISendEvent(forwarder dispatcher.Forwarder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+
+		var event model.Event
+		if err := json.Unmarshal(body, &event); err != nil {
+			http.Error(w, "invalid event payload", http.StatusBadRequest)
+			return
+		}
+
+		user := GetUserFromContext(r.Context())
+
+		log.Printf("Received CLI event from user: %s | Event: %+v", user, event)
+
+		if err := forwarder.Forward(event); err != nil {
+			log.Printf("Error forwarding event from user %s: %v", user, err)
+			http.Error(w, "failed to forward event", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("event accepted from CLI"))
+	}
+}

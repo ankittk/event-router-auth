@@ -66,3 +66,23 @@ ngrok:
 		echo "🌐 Public ngrok URL: $$NGROK_URL"; \
 		echo "$$NGROK_URL" > .ngrok-url; \
 		echo "NGROK_URL=$$NGROK_URL" > .env.ngrok
+
+curl-cli:
+	@echo "Sending CLI request with PAT token..."
+	@TOKEN="pat-dev-ankit-123"; \
+	curl -v http://localhost:8080/cli/send-event \
+	  -H "Authorization: Bearer $$TOKEN" \
+	  -H "Content-Type: application/json" \
+	  -d "$$(jq -c . $(PAYLOAD))"
+
+
+BINARY_NAME=event-cli
+CLI_MAIN=cmd/main.go
+build:
+	go build -o $(BINARY_NAME) $(CLI_MAIN)
+test-cli:
+	VALID_PAT=pat-dev-ankit-123 ./$(BINARY_NAME) send \
+		--payload ./payload.json
+clean:
+	rm -f $(BINARY_NAME)
+

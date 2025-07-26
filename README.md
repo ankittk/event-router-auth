@@ -132,3 +132,52 @@ sequenceDiagram
         Auth-->>Client: 401 Unauthorized
     end
 ```
+
+# CLI Authentication (PAT-based)
+
+The CLI tool enables internal developers to securely push events to the `event-router-auth` gateway using a **Personal Access Token (PAT)**.
+
+---
+
+## How CLI Authentication Works
+
+- Developers authenticate via a token set in the environment:
+  ```bash
+  export VALID_PAT=<pat>
+  ```
+- The CLI tool sends the token in the `Authorization` header:
+  ```http
+	Authorization: Bearer pat
+  ```
+- The server validates the token:
+- Looks it up in the VALID_PAT environment variable.
+- Maps the token to a known user (e.g., ankit, test-bot).
+- Injects the identity into the request context.
+- Processes the event if the token is valid.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant CLI as CLI Tool
+    participant Auth as Event Router Auth Server
+    participant Dispatcher as Internal Event Dispatcher
+    participant Consumer as Internal Event Consumer
+
+    Dev->>CLI: export EVENT_CLI_PAT=pat-dev-ankit-123
+    Dev->>CLI: event-cli send --type deploy ...
+
+    CLI->>Auth: POST /cli/send-event
+    Note right of CLI: Authorization: Bearer pat-dev-ankit-123\nContent-Type: application/json
+    CLI->>Auth: JSON Payload
+
+    Auth->>Auth: Extract PAT → Lookup user from VALID_PAT
+    alt PAT is valid
+        Auth->>Dispatcher: Forward event (user = ankit)
+        Dispatcher->>Consumer: POST /internal-event
+        Consumer-->>Dispatcher: 200 OK
+        Dispatcher-->>Auth: Event accepted
+        Auth-->>CLI: 202 Accepted
+    else Invalid PAT
+        Auth-->>CLI: 401 Unauthorized
+    end
+```

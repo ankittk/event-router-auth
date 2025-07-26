@@ -2,11 +2,25 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 
 	"event-router-auth/internal/auth"
 )
+
+type ctxKey string
+
+const UserCtxKey ctxKey = "user"
+
+func GetUserFromContext(ctx context.Context) string {
+	if u := ctx.Value(UserCtxKey); u != nil {
+		if str, ok := u.(string); ok {
+			return str
+		}
+	}
+	return "unknown"
+}
 
 func HMACMiddleware(validator *auth.HMACValidator, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,5 +54,17 @@ func JWTMiddleware(validator *auth.JWTValidator, next http.Handler) http.Handler
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func RequirePATAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, err := auth.ValidatePAT(r)
+		if err != nil {
+			http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+			return
+		}
+		ctx := context.WithValue(r.Context(), UserCtxKey, user)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
