@@ -181,3 +181,78 @@ sequenceDiagram
         Auth-->>CLI: 401 Unauthorized
     end
 ```
+
+# Local RS256 JWT Verification
+
+To implement JWT authentication using the RS256 algorithm locally, you'll need to generate an RSA key pair and 
+use the private key to sign JWTs and the public key to validate them.
+
+## Generate the private key and public key:
+```bash
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+```
+
+This will create a private.pem and public.pem file that can be used for signing and verifying JWTs.
+In the JWT authentication process using the RS256 algorithm, private.pem and public.pem serve as the key pair for signing and verifying JWTs. Here's how each key is used in the process:
+
+
+1. Private Key (private.pem)
+
+The private key is used to sign the JWT (JSON Web Token). This ensures that the JWT is created by a trusted party (you, as the service generating the token), and it allows the recipient to verify that the token hasn't been tampered with.
+
+    Used by: The JWT issuer (e.g., internal microservice, CLI, GitHub Actions, etc.).
+
+    Function:
+
+        The private key signs the JWT, embedding a digital signature in the token that guarantees its integrity.
+
+        Sign the JWT: When generating the JWT, the private key is used to sign the claims (issuer, audience, expiration, subject, etc.) in the token.
+
+
+2. Public Key (public.pem)
+
+The public key is used to verify the authenticity of the JWT. When the JWT is received by the server or another service, the public key is used to validate the signature created by the private key. If the public key successfully verifies the signature, it ensures that the token was indeed signed by the trusted entity (the issuer).
+
+    Used by: The JWT recipient (e.g., event-router-auth server or any service validating the JWT).
+
+    Function:
+
+        The public key validates the JWT's signature to ensure that it wasn't tampered with after it was issued.
+
+        It also validates the issuer (iss), audience (aud), expiration (exp), and other claims.
+
+        If the JWT's signature is valid and the claims are correct, the JWT is considered valid.
+
+
+JWT Creation (Issuer Side):
+
+    The private key (private.pem) is used by the issuer (e.g., a microservice, internal CLI tool, GitHub Actions) to sign the JWT with the appropriate claims (iss, aud, sub, exp).
+
+    This signed token is sent to the client.
+
+JWT Validation (Receiver Side):
+
+    The receiver (e.g., event-router-auth server) extracts the JWT from the Authorization header and validates it.
+
+    The public key (public.pem) is used to verify the signature of the JWT, ensuring that it hasn't been tampered with and that it was issued by a trusted source.
+
+    If the JWT is valid, the request proceeds; if invalid, the server responds with an authentication error (e.g., 401 Unauthorized).
+
+```mermaid
+sequenceDiagram
+participant Issuer as JWT Issuer (Private Key)
+participant Recipient as JWT Receiver (Public Key)
+participant Client as Client (CLI, GitHub Actions)
+
+    Client->>Issuer: Request JWT (with OAuth2 or GitHub OIDC)
+    Issuer-->>Client: JWT (Signed with private key)
+
+    Client->>Recipient: POST Request with JWT
+    Recipient->>Recipient: Validate JWT with public key
+    alt JWT is valid
+        Recipient-->>Client: Processed request
+    else Invalid JWT
+        Recipient-->>Client: 401 Unauthorized
+    end
+```

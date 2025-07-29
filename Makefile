@@ -49,6 +49,11 @@ jwt:
 	@echo "Generating JWT with shared secret..."
 	go run ./scripts/gen_jwt.go
 
+
+jwt256:
+	@echo "Generating JWT with shared secret..."
+	go run ./scripts/gen_jwt256.go
+
 curl-jwt:
 	@echo "Sending JWT request..."
 	@TOKEN=$$(go run ./scripts/gen_jwt.go); \
@@ -78,11 +83,13 @@ curl-cli:
 
 BINARY_NAME=event-cli
 CLI_MAIN=cmd/main.go
-build:
+
+build-cli:
 	go build -o $(BINARY_NAME) $(CLI_MAIN)
+
 test-cli:
 	VALID_PAT=pat-dev-ankit-123 ./$(BINARY_NAME) send \
 		--payload ./payload.json
+
 clean:
 	rm -f $(BINARY_NAME)
-
